@@ -31,6 +31,7 @@ final class ProfilingMethodInterceptor implements InvocationHandler {
     if (method.getDeclaringClass().equals(Object.class) && method.getName().equals("equals")) {
       return method.invoke(delegate, args);
     }
+
     boolean isProfiled = method.isAnnotationPresent(Profiled.class);
 
     Instant start = null;
@@ -41,27 +42,22 @@ final class ProfilingMethodInterceptor implements InvocationHandler {
 
     try {
       Object result = method.invoke(delegate, args);
-      if (isProfiled) {
-        Instant end = clock.instant();
-        state.record(
-            delegate.getClass(),
-            method,
-            Duration.between(start, end));
-      }
 
       return result;
-
-    } catch (InvocationTargetException e) {
+    } 
+    catch (InvocationTargetException e) {
+      throw e.getCause();
+    } 
+    catch (IllegalAccessException e) {
+      throw new RuntimeException(e);
+    } 
+    finally {
       if (isProfiled) {
-        Instant end = clock.instant();
-
         state.record(
             delegate.getClass(),
             method,
-            Duration.between(start, end));
+            Duration.between(start, clock.instant()));
       }
-
-      throw e.getCause();
     }
   }
 }
